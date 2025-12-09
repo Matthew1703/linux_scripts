@@ -1,12 +1,20 @@
 #!/bin/bash
 
-#Для сервера А
+SERVER="$1"
+PASSWORD="$2"
+OTHER_SERVER="$3"
+OTHER_PASSWORD="$4"
 
 #Добавление адреса в pg_hba.conf
-sed -i 's,# TYPE  DATABASE        USER            ADDRESS                 METHOD,# TYPE  DATABASE        USER            ADDRESS                 METHOD\nhost\tall\t\tall\t\t<ip адрес с указанием префикса маски>\tmd5,' /etc/postgresql/14/main/pg_hba.conf
+sed -i "s,# TYPE  DATABASE        USER            ADDRESS                 METHOD,# TYPE  DATABASE        USER            ADDRESS                 METHOD\nhost\tall\t\tall\t\t$OTHER_SERVER/32\tmd5," /var/lib/pgsql/14/data/pg_hba.conf
 
 #Установка принятия всех видов соединений
-sed -i "s/#listen_addresses = 'localhost'/listen_addresses = '*'/" /etc/postgresql/14/main/postgresql.conf
+sed -i "s/#listen_addresses = 'localhost'/listen_addresses = '*'/" /var/lib/pgsql/14/data/postgresql.conf
+
+
+firewall-cmd --permanent --add-port=5432/tcp 1>/dev/null
+
+firewall-cmd --reload 1>/dev/null
 
 #Перезапуск службы
-sudo systemctl restart postgresql
+systemctl restart postgresql-14

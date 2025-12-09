@@ -104,48 +104,41 @@ for i in A B; do
 done
 
 
-echo "=== НАЧАЛО РАЗВЕРТЫВАНИЯ script_updatepackeges_cruser_and_addrules.sh  ==="
+echo "=== НАЧАЛО РАЗВЕРТЫВАНИЯ ==="
+echo "Скрипт: script_updatepackeges_cruser_and_addrules.sh"
 
-# 1. Сервер B
+ssh-keyscan -H $serverA >> ~/.ssh/known_hosts 
+ssh-keyscan -H $serverB >> ~/.ssh/known_hosts 
+
 echo ""
 echo "════════════════════════════════════════"
 echo "СЕРВЕР B: $serverB"
 echo "════════════════════════════════════════"
 
-# Копирование на сервер B
-echo "📁 Копирование скрипта на сервер B..."
+echo "Копирование скрипта на сервер B..."
 sshpass -p "$password_serverB" rsync -avz \
     "$LOCAL_DIR/script_updatepackeges_cruser_and_addrules.sh" \
     "$USER@$serverB:$REMOTE_DIR/" 1>/dev/null
 
-# Установка прав и выполнение
-echo "🚀 Установка прав и выполнение на сервере B..."
+echo "Установка прав и выполнение на сервере B..."
 sshpass -p "$password_serverB" ssh "$USER@$serverB" \
     "chmod +x '$REMOTE_DIR/script_updatepackeges_cruser_and_addrules.sh' && \
      '$REMOTE_DIR/script_updatepackeges_cruser_and_addrules.sh' '$serverB' '$password_serverB' '$serverA' '$password_serverA'"
 
-# 2. Сервер A
 echo ""
 echo "════════════════════════════════════════"
 echo "СЕРВЕР A: $serverA"
 echo "════════════════════════════════════════"
 
-# Копирование на сервер A
-echo "📁 Копирование скрипта на сервер A..."
+echo "Копирование скрипта на сервер A..."
 sshpass -p "$password_serverA" rsync -avz \
     "$LOCAL_DIR/script_updatepackeges_cruser_and_addrules.sh" \
     "$USER@$serverA:$REMOTE_DIR/" 1>/dev/null
 
-# Установка прав и выполнение
-echo "🚀 Установка прав и выполнение на сервере A..."
+echo "Установка прав и выполнение на сервере A..."
 sshpass -p "$password_serverA" ssh "$USER@$serverA" \
     "chmod +x '$REMOTE_DIR/script_updatepackeges_cruser_and_addrules.sh' && \
      '$REMOTE_DIR/script_updatepackeges_cruser_and_addrules.sh' '$serverA' '$password_serverA' '$serverB' '$password_serverB'"
-
-echo ""
-echo "=== РАЗВЕРТЫВАНИЕ ЗАВЕРШЕНО script_updatepackeges_cruser_and_addrules.sh ==="
-
-
 
 
 
@@ -153,13 +146,11 @@ server_keys=("A" "B")
 server_ips=("$serverA" "$serverB")
 server_passwords=("$password_serverA" "$password_serverB")
 
-# Массивы скриптов для каждого сервера
-scriptsA=("certificate_exchange")
-scriptsB=("certificate_exchange")
+scriptsA=("database" "accessTOpostgresql")
+scriptsB=("nginx" "prohibition_nginx")
 
 echo "=== НАЧАЛО РАЗВЕРТЫВАНИЯ ==="
 
-# Цикл по всем серверам
 for i in "${!server_keys[@]}"
 do
     server_key="${server_keys[$i]}"
@@ -171,7 +162,6 @@ do
     echo "СЕРВЕР $server_key: $server_ip"
     echo "════════════════════════════════════════"
     
-    # Определяем какие скрипты использовать для этого сервера
     if [ "$server_key" = "A" ]; then
         scripts=("${scriptsA[@]}")
     elif [ "$server_key" = "B" ]; then
@@ -181,8 +171,7 @@ do
         continue
     fi
     
-    # 1. Копирование скриптов
-    echo "📁 Копирование скриптов:"
+    echo "Копирование скриптов:"
     for script in "${scripts[@]}"
     do
         echo -n "  → $script.sh... "
@@ -196,8 +185,7 @@ do
         fi
     done
     
-    # 2. Установка прав
-    echo "🔧 Установка прав..."
+    echo "Установка прав..."
     if sshpass -p "$password" ssh "$USER@$server_ip" \
         "chmod +x $REMOTE_DIR/*.sh" > /dev/null 2>&1; then
         echo "  ✓ Права установлены"
@@ -219,8 +207,7 @@ do
     fi
 
 
-    # 3. Выполнение скриптов
-    echo "🚀 Выполнение скриптов:"
+    echo "Выполнение скриптов:"
     for script in "${scripts[@]}"
     do
         echo -n "  ▶ $script... "
@@ -234,6 +221,49 @@ do
 
     done
 done
+
+
+
+if [ ! -f ~/.ssh/id_rsa ]; then
+    ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N "" -q
+fi
+
+LOCAL_PUBKEY=$(cat ~/.ssh/id_rsa.pub &>/dev/null)
+
+chmod 700 ~/.ssh
+touch ~/.ssh/authorized_keys
+chmod 600 ~/.ssh/authorized_keys
+
+sshpass -p "$password_serverA" rsync -avz "$LOCAL_DIR/certificate_exchange.sh" "$USER@$serverA:$REMOTE_DIR/" > /dev/null 2>&1
+
+sshpass -p "$password_serverA" ssh "$USER@$serverA" \
+    "chmod +x $REMOTE_DIR/certificate_exchange.sh
+    $REMOTE_DIR/certificate_exchange.sh '$serverA' '$password_serverA' '$serverB' '$password_serverB' '$LOCAL_PUBKEY'" 1>/dev/null;
+
+sshpass -p "$password_serverA" ssh "$USER@$serverA" \
+    "cat /home/DevOps/.ssh/id_rsa.pub" >> ~/.ssh/authorized_keys
+
+sshpass -p "$password_serverB" rsync -avz "$LOCAL_DIR/certificate_exchange.sh" "$USER@$serverB:$REMOTE_DIR/" > /dev/null 2>&1
+
+sshpass -p "$password_serverB" ssh "$USER@$serverB" \
+    "chmod +x $REMOTE_DIR/certificate_exchange.sh
+    $REMOTE_DIR/certificate_exchange.sh '$serverB' '$password_serverB' '$serverA' '$password_serverA' '$LOCAL_PUBKEY'" 1>/dev/null;
+
+sshpass -p "$password_serverB" ssh "$USER@$serverB" \
+    "cat /home/DevOps/.ssh/id_rsa.pub" >> ~/.ssh/authorized_keys
+
+
+
+CONFIG_B64=$(base64 -w0 sshd_config.custom)
+
+
+sshpass -p "$password_serverA" ssh root@$serverA \
+    "echo '$CONFIG_B64' | base64 -d > /etc/ssh/sshd_config && sshd -t && systemctl restart sshd"
+
+
+sshpass -p "$password_serverB" ssh root@$serverB \
+    "echo '$CONFIG_B64' | base64 -d > /etc/ssh/sshd_config && sshd -t && systemctl restart sshd"
+
 
 echo ""
 echo "=== РАЗВЕРТЫВАНИЕ ЗАВЕРШЕНО ==="
