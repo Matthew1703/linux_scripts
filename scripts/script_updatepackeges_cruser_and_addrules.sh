@@ -11,8 +11,6 @@ dnf update -y 1>/dev/null
 
 dnf install -y openssh-server openssh-clients 1>/dev/null
 
-# Создание пользователя DevOps
-
 if [ ! -d "/home/DevOps" ]; then
     useradd DevOps -m -d /home/DevOps -s /bin/bash
     echo "DevOps ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
@@ -31,5 +29,5 @@ chmod 755 /home/DevOps
 systemctl enable sshd
 systemctl start sshd
 
-echo "✅ Базовая настройка завершена на $HOSTNAME"
-echo "✅ Сервер $SERVER настроен"
+echo "Базовая настройка завершена на $HOSTNAME"
+echo "Сервер $SERVER настроен"
